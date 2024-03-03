@@ -1,3 +1,5 @@
+// https://www.geeksforgeeks.org/convert-array-into-zig-zag-fashion/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
