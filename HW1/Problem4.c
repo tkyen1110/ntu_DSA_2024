@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
+
+// https://cp.wiwiho.me/segment-tree/
 
 // struct node{
 // 	unsigned int label;
@@ -330,6 +333,7 @@
 
 struct array_node{
 	unsigned int label;
+    unsigned int reward_count;
     unsigned long long power;
 };
 typedef struct array_node ArrayNode;
@@ -344,6 +348,7 @@ typedef struct power_gain_node PowerGainNode;
 PowerGainNode* create_power_gain_node(unsigned long long power_gain) {
     PowerGainNode *new;
     new = (PowerGainNode*)malloc(sizeof(PowerGainNode));
+    if(new == NULL) fork();
     new -> power_gain = power_gain;
     new -> prev = NULL;
     new -> next = NULL;
@@ -353,21 +358,25 @@ PowerGainNode* create_power_gain_node(unsigned long long power_gain) {
 struct label_node{
 	unsigned int rank;
     unsigned int attacks;
+    unsigned int m;
+    unsigned long long power_gain_m;
+    PowerGainNode* pgain_head;
     PowerGainNode* power_gain_head;
     PowerGainNode* power_gain_tail;
 };
 typedef struct label_node LabelNode;
 
-void print_array(ArrayNode* arr, unsigned int N) {
+void print_array(ArrayNode* arr, unsigned int N, unsigned int reward_count) {
     for (unsigned int i=1; i<=N; i++) {
-        printf("%u(%llu) ", arr[i].label, arr[i].power);
+        printf("%u(%llu, %u/%u) ", arr[i].label, arr[i].power, arr[i].reward_count, reward_count);
     }
     printf("\n");
 }
 
-void rank_attack(ArrayNode* arr, unsigned int label, LabelNode* labelnode){
+void rank_attack(ArrayNode* arr, unsigned int label, LabelNode* labelnode, unsigned int N, unsigned int reward_count, unsigned int M){
     unsigned int rank = labelnode[label].rank;
     unsigned int tmp;
+    unsigned long long pgain;
     if (rank==1) {
         return;
     } else {
@@ -375,13 +384,30 @@ void rank_attack(ArrayNode* arr, unsigned int label, LabelNode* labelnode){
         arr[rank].label = arr[rank-1].label;
         arr[rank-1].label = tmp;
 
+        arr[rank].power += (unsigned long long)(reward_count - arr[rank].reward_count) * (N-rank);
+        arr[rank].reward_count = reward_count;
+
+        arr[rank-1].power += (unsigned long long)(reward_count - arr[rank-1].reward_count) * (N-rank+1);
+        arr[rank-1].reward_count = reward_count;
+
+        pgain = arr[rank-1].power - arr[rank].power;
+
         if (labelnode[arr[rank-1].label].power_gain_head==NULL || labelnode[arr[rank-1].label].power_gain_tail==NULL) {
-            labelnode[arr[rank-1].label].power_gain_head = create_power_gain_node(arr[rank-1].power - arr[rank].power);
+            labelnode[arr[rank-1].label].power_gain_head = create_power_gain_node(pgain);
             labelnode[arr[rank-1].label].power_gain_tail = labelnode[arr[rank-1].label].power_gain_head;
+            labelnode[arr[rank-1].label].pgain_head = labelnode[arr[rank-1].label].power_gain_head;
         } else {
-            labelnode[arr[rank-1].label].power_gain_tail->next = create_power_gain_node(arr[rank-1].power - arr[rank].power);
+            labelnode[arr[rank-1].label].power_gain_tail->next = create_power_gain_node(pgain);
             labelnode[arr[rank-1].label].power_gain_tail->next->prev = labelnode[arr[rank-1].label].power_gain_tail;
             labelnode[arr[rank-1].label].power_gain_tail = labelnode[arr[rank-1].label].power_gain_tail->next;
+        }
+        if (labelnode[arr[rank-1].label].m==M) {
+            labelnode[arr[rank-1].label].power_gain_m -= labelnode[arr[rank-1].label].pgain_head->power_gain;
+            labelnode[arr[rank-1].label].pgain_head = labelnode[arr[rank-1].label].pgain_head->next;
+            labelnode[arr[rank-1].label].power_gain_m += pgain;
+        } else {
+            labelnode[arr[rank-1].label].power_gain_m += pgain;
+            labelnode[arr[rank-1].label].m += 1;
         }
 
         arr[rank].power = arr[rank-1].power;
@@ -391,24 +417,30 @@ void rank_attack(ArrayNode* arr, unsigned int label, LabelNode* labelnode){
     }
 }
 
-void reward_each(ArrayNode* arr, unsigned int N){
-    for (unsigned int i=1; i<=N; i++) {
-        arr[i].power += (N-i);
-    }
+void reward_each(unsigned int* reward_count_ptr){
+    (*reward_count_ptr)++;
 }
 
-void query_power(ArrayNode* arr, unsigned int N, unsigned long long q){
+void query_power(ArrayNode* arr, unsigned int N, unsigned int reward_count, unsigned long long q){
     unsigned int low = 1;
     unsigned int high = N;
     unsigned int middle = (low + high) >> 1;
 
+    arr[1].power += (unsigned long long)(reward_count - arr[1].reward_count) * (N-1);
+    arr[1].reward_count = reward_count;
     if (arr[1].power < q) {
         printf("0 0\n");
         return;
     }
     while (low < high) {
         middle = (low + high) >> 1;
+        arr[middle].power += (unsigned long long)(reward_count - arr[middle].reward_count) * (N-middle);
+        arr[middle].reward_count = reward_count;
         if (arr[middle].power>=q) {
+            if (middle+1<=N) {
+                arr[middle+1].power += (unsigned long long)(reward_count - arr[middle+1].reward_count) * (N-middle-1);
+                arr[middle+1].reward_count = reward_count;
+            }
             if (middle+1<=N && arr[middle+1].power>=q) {
                 low = middle+1;
                 if (low==high) {
@@ -420,6 +452,8 @@ void query_power(ArrayNode* arr, unsigned int N, unsigned long long q){
         } else {
             high = middle - 1;
             if (low==high) {
+                arr[low].power += (unsigned long long)(reward_count - arr[low].reward_count) * (N-low);
+                arr[low].reward_count = reward_count;
                 if (arr[low].power>=q) {
                     middle = low;
                 }
@@ -429,18 +463,39 @@ void query_power(ArrayNode* arr, unsigned int N, unsigned long long q){
     printf("%u %u\n", middle, arr[middle].label);
 }
 
-void query_power_gain(LabelNode* labelnode, unsigned int b, unsigned int m) {
-    PowerGainNode* tail = labelnode[b].power_gain_tail;
-    unsigned long long power_gain = 0;
-    while (tail!=NULL) {
-        power_gain += tail->power_gain;
-        tail = tail->prev;
-        m = m - 1;
-        if (m==0) {
-            break;
+void query_power_gain(LabelNode* labelnode, unsigned int b, unsigned int m, unsigned int M) {
+    if (m==1) {
+        PowerGainNode* tail = labelnode[b].power_gain_tail;
+        if (tail==NULL) {
+            printf("0\n");
+        } else {
+            printf("%llu\n", tail->power_gain);
         }
+    } else if (labelnode[b].m<=m) {
+        printf("%llu\n", labelnode[b].power_gain_m);
+    } else {
+        unsigned long long power_gain;
+        if (m<labelnode[b].m/2) {
+            PowerGainNode* tail = labelnode[b].power_gain_tail;
+            power_gain = 0;
+            while (tail!=NULL) {
+                power_gain += tail->power_gain;
+                tail = tail->prev;
+                m = m - 1;
+                if (m==0) {
+                    break;
+                }
+            }
+        } else {
+            PowerGainNode* pgain_head = labelnode[b].pgain_head;
+            power_gain = labelnode[b].power_gain_m;
+            for (; labelnode[b].m>m; m++) {
+                power_gain -= pgain_head->power_gain;
+                pgain_head = pgain_head -> next;
+            }
+        }
+        printf("%llu\n", power_gain);
     }
-    printf("%llu\n", power_gain);
 }
 
 int main() {
@@ -450,16 +505,24 @@ int main() {
     // ArrayNode arr[N+1];
     // LabelNode labelnode[N+1];
     ArrayNode* arr = malloc(sizeof(ArrayNode)*(N+1)); // index is rank
+    if(arr == NULL) fork();
     LabelNode* labelnode = malloc(sizeof(LabelNode)*(N+1)); // index is label
+    if(labelnode == NULL) fork();
+
+    unsigned int reward_count = 0;
     for (unsigned int i=1; i<=N; i++) {
         arr[i].label = i;
+        arr[i].reward_count = 0;
         labelnode[i].rank = i;
         labelnode[i].attacks = 0;
+        labelnode[i].m = 0;
+        labelnode[i].power_gain_m = 0;
+        labelnode[i].pgain_head = NULL;
         labelnode[i].power_gain_head = NULL;
         labelnode[i].power_gain_tail = NULL;
         scanf("%llu", &arr[i].power);
     }
-    // print_array(arr, N);
+    // print_array(arr, N, reward_count);
 
 
     unsigned int label, b, m;
@@ -469,20 +532,21 @@ int main() {
         switch(incident) { 
             case 1:
                 scanf("%u", &label);
-                rank_attack(arr, label, labelnode);
-                // print_array(arr, N);
+                rank_attack(arr, label, labelnode, N, reward_count, M);
+                // print_array(arr, N, reward_count);
                 break; 
             case 2:
-                reward_each(arr, N);
-                // print_array(arr, N);
+                reward_each(&reward_count);
+                // print_array(arr, N, reward_count);
                 break; 
             case 3:
                 scanf("%llu", &q);
-                query_power(arr, N, q);
+                query_power(arr, N, reward_count, q);
+                // print_array(arr, N, reward_count);
                 break; 
             case 4:
                 scanf("%u%u", &b, &m);
-                query_power_gain(labelnode, b, m);
+                query_power_gain(labelnode, b, m, M);
                 break; 
             default: 
                 break;
