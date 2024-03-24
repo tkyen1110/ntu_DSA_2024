@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 // https://cp.wiwiho.me/segment-tree/
+// https://web.ntnu.edu.tw/~algo/Sequence2.html
 
 // struct node{
 // 	unsigned int label;
