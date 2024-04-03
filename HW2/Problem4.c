@@ -6,7 +6,7 @@
 struct node{
     unsigned int num;
     unsigned int length;
-    unsigned int guess;
+    unsigned long long guess;
     bool treasure_exist;
 	long long treasure;
     struct node *child;
@@ -50,20 +50,27 @@ int main() {
     unsigned int N, M, Q, op, num;
     unsigned int ui, vi, li;
     long long ti, pi, treasure, treasure2;
+    unsigned long long current_guess, parent_guess;
     bool first_negative;
     scanf("%u%u%u", &N, &M, &Q);
 
-    Node* tmp;
     // Dynamically allocate memory for the array of pointers
     Node** dungeon = malloc((N) * sizeof(Node*));
 
     // Initialize all elements of the array to NULL
-    for (unsigned int i=0; i<N; i++) {
-        dungeon[i] = create_node(i);
-    }
+    // for (unsigned int i=0; i<N; i++) {
+    //     dungeon[i] = create_node(i);
+    // }
 
+    Node* tmp;
     for (unsigned int i=1; i<=M; i++) {
         scanf("%u%u%u", &ui, &vi, &li);
+        if (dungeon[ui]==NULL) {
+            dungeon[ui] = create_node(ui);
+        }
+        if (dungeon[vi]==NULL) {
+            dungeon[vi] = create_node(vi);
+        }
         if (dungeon[ui]->child == NULL) {
             dungeon[ui]->child = dungeon[vi];
         } else if (dungeon[ui]->child->siblingtail == NULL) {
@@ -76,9 +83,10 @@ int main() {
         dungeon[vi]->parent = dungeon[ui];
         dungeon[vi]->length = li;
 
+        // For op = 4
         tmp = dungeon[vi];
         while (tmp->parent != NULL) {
-            tmp->parent->guess = max(tmp->parent->guess, tmp->guess + tmp->length);
+            tmp->parent->guess = max(tmp->parent->guess, (unsigned long long)tmp->guess + tmp->length);
             tmp = tmp->parent;
         }
     }
@@ -103,15 +111,37 @@ int main() {
                 if (current->parent == NULL) {
                     printf("-1\n");
                 } else {
-                    tmp = current->sibling;
-                    if (current->parent->guess == current->guess + current->length) {
-                        current->parent->guess = 0;
-                        while (tmp != NULL) {
-                            current->parent->guess = max(current->parent->guess, tmp->guess + tmp->length);
+                    // For op = 4
+                    tmp = current;
+                    current_guess = tmp->guess;
+                    parent_guess = tmp->parent->guess;
+                    while (parent_guess == current_guess + tmp->length) {
+                        tmp->parent->guess = 0;
+                        while (tmp->sibling != NULL) {
                             tmp = tmp->sibling;
+                            tmp->parent->guess = max(tmp->parent->guess, (unsigned long long)tmp->guess + tmp->length);
+                        }
+                        if (parent_guess != tmp->parent->guess) {
+                            tmp = tmp->parent;
+                            if (tmp->parent == NULL) {
+                                break;
+                            }
+                            current_guess = parent_guess;
+                            parent_guess = tmp->parent->guess;
+                        } else {
+                            break;
                         }
                     }
+
+                    // For op = 2
                     current->parent->child = current->sibling;
+                    if (current->parent->child != NULL) {
+                        if (current->parent->child->sibling != NULL) {
+                            current->parent->child->siblingtail = current->siblingtail;
+                        } else {
+                            current->parent->child->siblingtail = NULL;
+                        }
+                    }
                     current = current->parent;
                     printf("%u\n", current->num);
                 }
@@ -128,7 +158,7 @@ int main() {
                 break;
             case 4:
                 // Guess
-                printf("%u\n", current->guess);
+                printf("%llu\n", current->guess);
                 break;
             case 5:
                 // Discover
