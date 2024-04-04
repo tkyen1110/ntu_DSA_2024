@@ -273,9 +273,9 @@ int main() {
                 // Print Operation
                 scanf("%u", &printer_id);
                 // printf("%u %u\n", op, printer_id);
-                if (printer_max[printer_id]->current != NULL) {
-                    printf("Max priority %u waiting on printer %u\n", printer_max[printer_id]->current->priority, printer_id);
-                }
+                // if (printer_max[printer_id]->current != NULL) {
+                //     printf("Max priority %u waiting on printer %u\n", printer_max[printer_id]->current->priority, printer_id);
+                // }
                 // print_binomial_heap(printer[printer_id]);
                 binomial_heap_extract_max(printer, printer_max, printer_id);
                 // printf("Printer %u:\n", printer_id);
