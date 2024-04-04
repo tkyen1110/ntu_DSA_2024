@@ -58,6 +58,16 @@ void print_binomial_heap(Node* heap) {
     printf("\n");
 }
 
+void print_binomial_heap_first_node(Node* heap) {
+    while (heap!=NULL) {
+        printf("%u: ", heap->degree);
+        printf("%u(job_id=%u, num_nodes=%u) ", heap->priority, heap->job_id, heap->nodes);
+        heap = heap->sibling;
+        printf("\n");
+    }
+    printf("\n");
+}
+
 Node* binomial_heap_merge(Node* heap1, Node* heap2) {
     Node *head=NULL, *tail=NULL;
     if (heap1==NULL && heap2==NULL) {
@@ -213,12 +223,13 @@ void binomial_heap_extract_max(Node** printer, MaxNode** printer_max, unsigned i
         printf("%u printed\n", current->job_id);
         if (prev == NULL) {
             printer[printer_id] = current->sibling;
-            current->sibling = NULL;
         } else {
             prev->sibling = current->sibling;
-            current->sibling = NULL;
         }
+        current->sibling = NULL;
         new_heap = reverse_linked_list(current->child);
+        current->child = NULL;
+        free(current);
         printer[printer_id] = binomial_heap_union(printer[printer_id], new_heap, printer_max[printer_id], printer_id, 2);
     }
 }
@@ -233,6 +244,7 @@ void binomial_heap_move(Node** printer, MaxNode** printer_max, unsigned int prin
 int main() {
     unsigned int N, M, op, job_id, priority, printer_id, printer_id1, printer_id2;
     scanf("%u%u", &N, &M);
+    // printf("%u %u\n", N, M);
 
     // Dynamically allocate memory for the array of pointers
     Node** printer = malloc((N + 1) * sizeof(Node*));
@@ -247,37 +259,42 @@ int main() {
     for (unsigned int i=1; i<=M; i++) {
         scanf("%u", &op);
 
+        // printf("= = = = = = = = = = %u = = = = = = = = = =\n", i+1);
         switch(op) { 
             case 1:
                 // Add Operation
                 scanf("%u%u%u", &job_id, &priority, &printer_id);
+                // printf("%u %u %u %u\n", op, job_id, priority, printer_id);
                 binomial_heap_insert(printer, printer_max, job_id, priority, printer_id);
-                printf("Printer %u:\n", printer_id);
-                print_binomial_heap(printer[printer_id]);
-                break; 
+                // printf("Printer %u:\n", printer_id);
+                // print_binomial_heap(printer[printer_id]);
+                break;
             case 2:
                 // Print Operation
                 scanf("%u", &printer_id);
-                // printf("Max priority %u waiting on printer %u\n", printer_max[printer_id]->current->priority, printer_id);
+                // printf("%u %u\n", op, printer_id);
+                if (printer_max[printer_id]->current != NULL) {
+                    printf("Max priority %u waiting on printer %u\n", printer_max[printer_id]->current->priority, printer_id);
+                }
+                // print_binomial_heap(printer[printer_id]);
                 binomial_heap_extract_max(printer, printer_max, printer_id);
-                printf("Printer %u:\n", printer_id);
-                print_binomial_heap(printer[printer_id]);
+                // printf("Printer %u:\n", printer_id);
+                // print_binomial_heap(printer[printer_id]);
                 break;
             case 3:
                 // Move Operation
                 scanf("%u%u", &printer_id1, &printer_id2);
+                // printf("%u %u %u\n", op, printer_id1, printer_id2);
                 binomial_heap_move(printer, printer_max, printer_id1, printer_id2);
-                printf("Printer %u:\n", printer_id1);
-                print_binomial_heap(printer[printer_id1]);
-                printf("\n");
-                printf("Printer %u:\n", printer_id2);
-                print_binomial_heap(printer[printer_id2]);
-                break; 
+                // printf("Printer %u:\n", printer_id1);
+                // print_binomial_heap(printer[printer_id1]);
+                // printf("\n");
+                // printf("Printer %u:\n", printer_id2);
+                // print_binomial_heap(printer[printer_id2]);
+                break;
             default: 
                 break;
         }
-
     }
-
     return 0;
 }
