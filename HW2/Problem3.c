@@ -12,7 +12,6 @@ typedef struct node Node;
 struct max_node{
 	struct node *current;
     struct node *prev;
-    // struct node *sibling;
 };
 typedef struct max_node MaxNode;
 
@@ -33,7 +32,6 @@ MaxNode* create_max_node() {
     new = (MaxNode*)malloc(sizeof(MaxNode));
     new -> current = NULL;
     new -> prev = NULL;
-    // new -> sibling = NULL;
     return new;
 }
 
@@ -138,14 +136,9 @@ Node* binomial_heap_union(Node* heap1, Node* heap2, MaxNode* heapmax, unsigned i
         } else {
             if (x->priority >= next->priority) {
                 x->sibling = next->sibling;
-                if (x->child == NULL) {
-                    x->child = next;
-                    next->sibling = NULL;
-                } else {
-                    child = x->child;
-                    x->child = next;
-                    next->sibling = child;
-                }
+                child = x->child;
+                x->child = next;
+                next->sibling = child;
                 x->degree++;
                 x->nodes = x->nodes + next->nodes;
             } else {
@@ -154,14 +147,9 @@ Node* binomial_heap_union(Node* heap1, Node* heap2, MaxNode* heapmax, unsigned i
                 } else {
                     prev->sibling = next;
                 }
-                if (next->child == NULL) {
-                    next->child = x;
-                    x->sibling = NULL;
-                } else {
-                    child = next->child;
-                    next->child = x;
-                    x->sibling = child;
-                }
+                child = next->child;
+                next->child = x;
+                x->sibling = child;
                 next->degree++;
                 next->nodes = next->nodes + x->nodes;
                 x = next;
