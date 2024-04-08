@@ -156,8 +156,13 @@ int main() {
         // For op = 4
         tmp = dungeon[vi];
         while (tmp->parent != NULL) {
+            parent_guess = tmp->parent->guess;
             tmp->parent->guess = max(tmp->parent->guess, (unsigned long long)tmp->guess + tmp->length);
-            tmp = tmp->parent;
+            if (tmp->parent->guess == parent_guess) {
+                break;
+            } else {
+                tmp = tmp->parent;
+            }
         }
     }
 
@@ -191,7 +196,7 @@ int main() {
                     tmp = current;
                     current_guess = tmp->guess;
                     parent_guess = tmp->parent->guess;
-                    while (parent_guess == current_guess + tmp->length) {
+                    while (parent_guess == (unsigned long long)current_guess + tmp->length) {
                         tmp->parent->guess = 0;
                         while (tmp->sibling != NULL) {
                             tmp = tmp->sibling;
@@ -269,7 +274,7 @@ int main() {
                     while (tmp->parent != NULL) {
                         if (tmp->parent->treasure_exist) {
                             treasure2 = tmp->parent->treasure;
-                            tmp->parent->treasure = treasure - tmp->length;
+                            tmp->parent->treasure = (long long)treasure - tmp->length;
                             if (tmp->parent->treasure < 0 && first_negative == false) {
                                 first_negative = true;
                                 num = tmp->parent->num;
@@ -285,7 +290,7 @@ int main() {
                             }
                         } else {
                             tmp->parent->treasure_exist = true;
-                            tmp->parent->treasure = treasure - tmp->length;
+                            tmp->parent->treasure = (long long)treasure - tmp->length;
                             if (tmp->parent->treasure < 0 && first_negative == false) {
                                 first_negative = true;
                                 num = tmp->parent->num;
