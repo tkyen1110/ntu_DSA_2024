@@ -112,6 +112,10 @@ Node* binomial_heap_union(Node* heap1, Node* heap2, MaxNode* heapmax, unsigned i
     heapmax->prev = NULL;
     Node* head = binomial_heap_merge(heap1, heap2);
     if (head == NULL) {
+        if (op==3) {
+            // Move Operation
+            printf("0 jobs waiting on printer %u after moving\n", printer_id);
+        }
         return NULL;
     }
     // printf("binomial_heap_merge:\n");
@@ -280,7 +284,7 @@ int main() {
                 // printf("Printer %u:\n", printer_id2);
                 // print_binomial_heap(printer[printer_id2]);
                 break;
-            default: 
+            default:
                 break;
         }
     }
