@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#define max(a, b) ((a > b) ? a : b)
 
 struct guess_node{
     unsigned long long guess;
@@ -357,32 +356,25 @@ unsigned int find_first_negative_dungeon(Node* dungeon, Node** plan_stack, long 
             }
         }
     }
-
-    // for(unsigned int i=0; i<=dungeon->level; i++) {
-    //     printf("%llu -> ", plan_stack[i]->acc_length);
-    // }
-
-    return 0;
 }
 
 int main() {
-    unsigned int N, M, Q, op, num;
+    unsigned int N, M, Q, op;
     unsigned int ui, vi, li;
 
     unsigned int low, high, middle;
     long long ti, pi, path, treasure;
     unsigned long long current_guess, parent_guess;
 
-    bool first_negative;
     scanf("%u%u%u", &N, &M, &Q);
 
     // Dynamically allocate memory for the array of pointers
     Node** dungeon = malloc((N) * sizeof(Node*));
 
     // Initialize all elements of the array to NULL
-    // for (unsigned int i=0; i<N; i++) {
-    //     dungeon[i] = create_node(i);
-    // }
+    for (unsigned int i=0; i<N; i++) {
+        dungeon[i] = NULL;
+    }
 
     for (unsigned int i=1; i<=M; i++) {
         scanf("%u%u%u", &ui, &vi, &li);
@@ -421,6 +413,7 @@ int main() {
     Node* parent;
     Node* tmp;
     GuessNode *guess_tmp;
+
     // For op = 3
     Node** plan_stack = malloc((N) * sizeof(Node*));
     unsigned int plan_idx = 0;
@@ -544,13 +537,27 @@ int main() {
             case 5:
                 // Discover
                 scanf("%lld", &pi);
+                if (plan_stack[plan_idx-1]->level == 0) {
+                    if (pi >= 0) {
+                        printf("value remaining is %lld\n", pi);
+                    } else {
+                        printf("value lost at 0\n");
+                    }
+                    break;
+                }
 
                 if (discover_head==NULL) {
                     discover_head = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
                     discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
                     discover_head->tail = discover_head->head;
                 } else {
-                    if (plan_stack[plan_idx-1]->level == discover_head->level_end + 1) {
+                    if (plan_stack[plan_idx-1]->level > discover_head->level_end + 1) {
+                        discover_head->down = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
+                        discover_head->down->up = discover_head;
+                        discover_head = discover_head->down;
+                        discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                        discover_head->tail = discover_head->head;
+                    } else if (plan_stack[plan_idx-1]->level == discover_head->level_end + 1) {
                         discover_head->level_end = discover_head->level_end + 1;
                         discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
                         discover_head->tail->next->prev = discover_head->tail;
@@ -569,9 +576,7 @@ int main() {
                                 discover_head->up->tail = discover_head->tail;
                                 discover_head_tmp = discover_head;
                                 discover_head = discover_head->up;
-                                if (discover_head != NULL) {
-                                    discover_head->down = NULL;
-                                }
+                                discover_head->down = NULL;
                                 free(discover_head_tmp);
                             }
                         } else if (discover_head->level_start > 0) {
@@ -589,43 +594,19 @@ int main() {
                                 discover_head->level_start = discover_head->level_start + 1;
                                 discover_tmp = discover_head->head;
                                 discover_head->head = discover_head->head->next;
-                                if (discover_head->head != NULL) {
-                                    discover_head->head->prev = NULL;
-                                }
                                 free(discover_tmp);
+
                                 if (discover_head->head == NULL) {
                                     discover_head->tail = NULL;
                                     free(discover_head);
                                     discover_head = NULL;
+                                } else {
+                                    discover_head->head->prev = NULL;
                                 }
                             }
                         } else {
                             ;
-
-                            // if (discover_head->head->escorted_treasure >= 0) {
-                            //     printf("value remaining is %lld\n", discover_head->head->escorted_treasure);
-                            // } else {
-                                
-                            //     ;
-                            //     // printf("value lost at %u\n", num);
-                            // }
-                            // discover_head->level_end = discover_head->level_end - 1;
-                            // discover_tmp = discover_head->head;
-                            // discover_head->head = discover_head->head->next;
-                            // discover_head->head->prev = NULL;
-                            // free(discover_tmp);
-                            // if (discover_head->head == NULL) {
-                            //     discover_head->tail = NULL;
-                            //     free(discover_head);
-                            //     discover_head = NULL;
-                            // }
                         }
-                    } else {
-                        discover_head->down = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
-                        discover_head->down->up = discover_head;
-                        discover_head = discover_head->down;
-                        discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
-                        discover_head->tail = discover_head->head;
                     }
                 }
                 // print_discover_node(discover_head);
@@ -636,8 +617,6 @@ int main() {
             default: 
                 break;
         }
-
     }
-
     return 0;
 }
