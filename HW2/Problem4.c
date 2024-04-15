@@ -4,13 +4,32 @@
 #include <string.h>
 #define max(a, b) ((a > b) ? a : b)
 
+struct guess_node{
+    unsigned long long guess;
+    unsigned int child_id;
+    struct guess_node* prev;
+    struct guess_node* next;
+};
+typedef struct guess_node GuessNode;
+
+GuessNode* create_guess_node(unsigned long long guess, unsigned int child_id) {
+    GuessNode *new;
+    new = (GuessNode*)malloc(sizeof(GuessNode));
+    new -> guess = guess;
+    new -> child_id = child_id;
+    new -> prev = NULL;
+    new -> next = NULL;
+    return new;
+}
+
 struct node{
     unsigned int num;
+    unsigned int level;
+    unsigned int child_id;
     unsigned int length;
     unsigned long long acc_length;
-    unsigned long long guess;
-    bool treasure_exist;
-	long long treasure;
+    GuessNode* guess_head;
+    GuessNode* guess_tail;
     struct node* child;
     struct node* parent;
     struct node* sibling;
@@ -22,10 +41,12 @@ Node* create_node(unsigned int num) {
     Node *new;
     new = (Node*)malloc(sizeof(Node));
     new -> num = num;
+    new -> level = 0;
+    new -> child_id = 0;
     new -> length = 0;
     new -> acc_length = 0;
-    new -> guess = 0;
-    new -> treasure_exist = false;
+    new -> guess_head = NULL;
+    new -> guess_tail = NULL;
     new -> child = NULL;
     new -> parent = NULL;
     new -> sibling = NULL;
@@ -33,18 +54,82 @@ Node* create_node(unsigned int num) {
     return new;
 }
 
-void print_node(Node* head) {
-    Node* sibling = NULL;
+void print_guess_node(Node* node) {
+    GuessNode* head = node->guess_head;
+    printf("[node = %3u]   ", node->num);
     while (head != NULL) {
-        printf("%u ", head->num);
+        printf("(guess = %llu,  child_id = %u) -> ", head->guess, head->child_id);
+        head = head->next;
+    }
+    printf("\n");
+}
 
-        sibling = head->sibling;
+void print_node(Node* root) {
+    Node* sibling = NULL;
+    while (root != NULL) {
+        printf("%u ", root->num);
+
+        sibling = root->sibling;
         while (sibling != NULL) {
             printf("%u ", sibling->num);
             sibling = sibling->sibling;
         }
         printf("\n");
-        head = head->child;
+        root = root->child;
+    }
+}
+
+struct discover_head_node{
+    unsigned int level_start;
+    unsigned int level_end;
+    struct discover_node* head;
+    struct discover_node* tail;
+    struct discover_head_node* up;
+    struct discover_head_node* down;
+};
+typedef struct discover_head_node DiscoverHeadNode;
+
+struct discover_node{
+    Node* dungeon;
+    long long escorted_treasure;
+    struct discover_node* prev;
+    struct discover_node* next;
+};
+typedef struct discover_node DiscoverNode;
+
+DiscoverHeadNode* create_discover_head_node(unsigned int level_start, unsigned int level_end) {
+    DiscoverHeadNode* new;
+    new = (DiscoverHeadNode*)malloc(sizeof(DiscoverHeadNode));
+    new -> level_start = level_start;
+    new -> level_end = level_end;
+    new -> head = NULL;
+    new -> tail = NULL;
+    new -> up = NULL;
+    new -> down = NULL;
+    return new;
+}
+
+DiscoverNode* create_discover_node(Node* dungeon, long long escorted_treasure) {
+    DiscoverNode *new;
+    new = (DiscoverNode*)malloc(sizeof(DiscoverNode));
+    new -> dungeon = dungeon;
+    new -> escorted_treasure = escorted_treasure;
+    new -> prev = NULL;
+    new -> next = NULL;
+    return new;
+}
+
+void print_discover_node(DiscoverHeadNode* discover_head) {
+    while (discover_head != NULL) {
+        printf("(%u, %u): ", discover_head->level_start, discover_head->level_end);
+        DiscoverNode* head = discover_head->head;
+        while (head != NULL) {
+            printf("%u(%lld) -> ", head->dungeon->num, head->escorted_treasure);
+            head = head->next;
+        }
+        printf("\n");
+        discover_head = discover_head->down;
+        printf("%p\n", discover_head);
     }
 }
 
@@ -71,18 +156,19 @@ void print_node(Node* head) {
 //     BFS(root->child);
 // }
 
-// void BFS_print(Node* root) {
-//     if (root == NULL) {
-//         return;
-//     }
-//     printf("num = %u / level = %u / length = %u / acc_length = %llu\n", root->num, root->level, root->length, root->acc_length);
-//     for (unsigned int i=0; i<=root->level; i++) {
-//         printf("%llu ", root->path[i]->acc_length);
-//     }
-//     printf("\n");
-//     BFS_print(root->sibling);
-//     BFS_print(root->child);
-// }
+void BFS_print(Node* root) {
+    if (root == NULL) {
+        return;
+    }
+    if (root->guess_head == NULL) {
+        printf("num = %u / length = %u / acc_length = %llu\n", root->num, root->length, root->acc_length);
+    } else {
+        printf("num = %u / length = %u / acc_length = %llu / guess = %llu\n", root->num, root->length, root->acc_length, root->guess_head->guess);
+    }
+    
+    BFS_print(root->sibling);
+    BFS_print(root->child);
+}
 
 void stack_push(Node** stack, unsigned int* idx, Node* current) {
     if (*idx >= 1) {
@@ -112,12 +198,179 @@ void stack_print(Node** stack, unsigned int idx) {
     printf("\n");
 }
 
+void dequeue_push_back(GuessNode** head, GuessNode** tail, unsigned long long guess, unsigned int child_id) {
+    if ((*tail)==NULL) {
+        *head = create_guess_node(guess, child_id);
+        *tail = *head;
+    } else {
+        (*tail)->next = create_guess_node(guess, child_id);
+        (*tail)->next->prev = *tail;
+        *tail = (*tail)->next;
+    }
+}
+
+void dequeue_pop_back(GuessNode** head, GuessNode** tail) {
+    GuessNode* tmp;
+    if ((*tail)!=NULL) {
+        tmp = *tail;
+        if ((*tail)->prev == NULL) {
+            *head = NULL;
+            *tail = NULL;
+        } else {
+            (*tail)->prev->next = NULL;
+            *tail = (*tail)->prev;
+        }
+        free(tmp);
+    }
+}
+
+void dequeue_push_front(GuessNode** head, GuessNode** tail, unsigned long long guess, unsigned int child_id) {
+    if ((*head)==NULL) {
+        *head = create_guess_node(guess, child_id);
+        *tail = *head;
+    } else {
+        (*head)->prev = create_guess_node(guess, child_id);
+        (*head)->prev->next = *head;
+        *head = (*head)->prev;
+    }
+}
+
+void dequeue_pop_front(GuessNode** head, GuessNode** tail) {
+    GuessNode* tmp;
+    if ((*head)!=NULL) {
+        tmp = *head;
+        if ((*head)->next == NULL) {
+            *head = NULL;
+            *tail = NULL;
+        } else {
+            (*head)->next->prev = NULL;
+            *head = (*head)->next;
+        }
+        free(tmp);
+    }
+}
+
+void dequeue_delete_middle(GuessNode** head, GuessNode** middle, GuessNode** tail) {
+    GuessNode* tmp;
+    if (*middle == *head) {
+        dequeue_pop_front(head, tail);
+        *middle = *head;
+    } else {
+        (*middle)->prev->next = (*middle)->next;
+        if ((*middle)->next != NULL) {
+            (*middle)->next->prev = (*middle)->prev;
+        } else {
+            *tail = (*middle)->prev;
+        }
+        tmp = *middle;
+        *middle = (*middle)->next;
+        free(tmp);
+    }
+}
+
+void monotonic_queue_insert(Node** dungeon, unsigned long long guess, unsigned int child_id) {
+    Node* current = *dungeon;
+    GuessNode *guess_head, *guess_tail, *guess_midd, *guess_tmp;
+    unsigned long long parent_guess;
+
+    while (current->guess_tail != NULL && current->guess_tail->guess <= guess) {
+        dequeue_pop_back(&(current->guess_head), &(current->guess_tail));
+    }
+    dequeue_push_back(&(current->guess_head), &(current->guess_tail), guess, child_id);
+    // print_guess_node(current);
+
+    while (current->parent != NULL) {
+        guess_head = current->parent->guess_head;
+        guess_tail = current->parent->guess_tail;
+        guess_midd = guess_head;
+        parent_guess = current->guess_head->guess + current->length;
+
+        while (guess_midd != NULL) {
+            if (guess_midd->child_id < current->child_id) {
+                if (guess_midd->guess <= parent_guess) {
+                    dequeue_delete_middle(&guess_head, &guess_midd, &guess_tail);
+                } else {
+                    guess_midd = guess_midd->next;
+                }
+            } else if (guess_midd->child_id == current->child_id) {
+                if (guess_midd->guess < parent_guess) {
+                    guess_midd->guess = parent_guess;
+                }
+                if (guess_midd->next != NULL) {
+                    if (guess_midd->next->guess < parent_guess) {
+                        break;
+                    } else {
+                        dequeue_delete_middle(&guess_head, &guess_midd, &guess_tail);
+                    }
+                } else {
+                    guess_midd = guess_midd->next;
+                }
+            } else {
+                if (guess_midd->guess >= parent_guess) {
+                    break;
+                } else {
+                    // guess_midd = guess_midd->prev;
+                    guess_tmp = create_guess_node(parent_guess, current->child_id);
+                    guess_tmp->next = guess_midd;
+                    if (guess_midd->prev == NULL) {
+                        guess_head = guess_tmp;
+                        guess_midd->prev = guess_tmp;
+                    } else {
+                        guess_midd->prev->next = guess_tmp;
+                        guess_tmp->prev = guess_midd->prev;
+                        guess_tmp->next = guess_midd;
+                        guess_midd->prev = guess_tmp;
+                    }
+                    break;
+                }
+            }
+        }
+
+        current->parent->guess_head = guess_head;
+        current->parent->guess_tail = guess_tail;
+
+        // print_guess_node(current->parent);
+        current = current->parent;
+    }
+}
+
+unsigned int find_first_negative_dungeon(Node* dungeon, Node** plan_stack, long long treasure) {
+    unsigned int low = 0;
+    unsigned int high = dungeon->level;
+    unsigned int middle;
+    unsigned int plan_idx = dungeon->level;
+    long long path;
+
+    while (low < high) {
+        middle = (low + high) >> 1;
+        path = plan_stack[plan_idx]->acc_length - plan_stack[middle]->acc_length;
+        if (treasure >= path) {
+            high = middle;
+        } else {
+            low = middle;
+        }
+        if (high == low + 1) {
+            if (treasure >= plan_stack[plan_idx]->acc_length - plan_stack[high]->acc_length) {
+                return plan_stack[low]->num;
+            } else {
+                return plan_stack[high]->num;
+            }
+        }
+    }
+
+    // for(unsigned int i=0; i<=dungeon->level; i++) {
+    //     printf("%llu -> ", plan_stack[i]->acc_length);
+    // }
+
+    return 0;
+}
+
 int main() {
     unsigned int N, M, Q, op, num;
     unsigned int ui, vi, li;
 
-    unsigned int low, high, median;
-    long long ti, pi, path, treasure, treasure2;
+    unsigned int low, high, middle;
+    long long ti, pi, path, treasure;
     unsigned long long current_guess, parent_guess;
 
     bool first_negative;
@@ -131,7 +384,6 @@ int main() {
     //     dungeon[i] = create_node(i);
     // }
 
-    Node* tmp;
     for (unsigned int i=1; i<=M; i++) {
         scanf("%u%u%u", &ui, &vi, &li);
         if (dungeon[ui]==NULL) {
@@ -143,34 +395,41 @@ int main() {
 
         if (dungeon[ui]->child == NULL) {
             dungeon[ui]->child = dungeon[vi];
+            dungeon[vi]->child_id = 1;
         } else if (dungeon[ui]->child->siblingtail == NULL) {
             dungeon[ui]->child->sibling = dungeon[vi];
             dungeon[ui]->child->siblingtail = dungeon[vi];
+            dungeon[vi]->child_id = dungeon[ui]->child->child_id + 1;
         } else {
             dungeon[ui]->child->siblingtail->sibling = dungeon[vi];
+            dungeon[vi]->child_id = dungeon[ui]->child->siblingtail->child_id + 1;
             dungeon[ui]->child->siblingtail = dungeon[ui]->child->siblingtail->sibling;
         }
         dungeon[vi]->parent = dungeon[ui];
         dungeon[vi]->length = li;
 
         // For op = 4
-        tmp = dungeon[vi];
-        while (tmp->parent != NULL) {
-            parent_guess = tmp->parent->guess;
-            tmp->parent->guess = max(tmp->parent->guess, (unsigned long long)tmp->guess + tmp->length);
-            if (tmp->parent->guess == parent_guess) {
-                break;
-            } else {
-                tmp = tmp->parent;
-            }
+        // Monotonic Queue
+        if (dungeon[vi]->guess_head == NULL) {
+            monotonic_queue_insert(&dungeon[ui], dungeon[vi]->length, dungeon[vi]->child_id);
+        } else {
+            monotonic_queue_insert(&dungeon[ui], dungeon[vi]->guess_head->guess + dungeon[vi]->length, dungeon[vi]->child_id);
         }
     }
 
     Node* current = dungeon[0];
+    Node* parent;
+    Node* tmp;
+    GuessNode *guess_tmp;
     // For op = 3
     Node** plan_stack = malloc((N) * sizeof(Node*));
     unsigned int plan_idx = 0;
     stack_push(plan_stack, &plan_idx, current);
+
+    // For op = 5
+    DiscoverHeadNode* discover_head = NULL;
+    DiscoverHeadNode* discover_head_tmp;
+    DiscoverNode* discover_tmp;
 
     for (unsigned int i=1; i<=Q; i++) {
         scanf("%u", &op);
@@ -179,6 +438,7 @@ int main() {
             case 1:
                 // Downstream
                 if (current->child != NULL) {
+                    current->child->level = current->level + 1;
                     current = current->child;
                     stack_push(plan_stack, &plan_idx, current);
                     // stack_print(plan_stack, plan_idx);
@@ -193,26 +453,40 @@ int main() {
                     printf("-1\n");
                 } else {
                     // For op = 4
-                    tmp = current;
-                    current_guess = tmp->guess;
-                    parent_guess = tmp->parent->guess;
-                    while (parent_guess == (unsigned long long)current_guess + tmp->length) {
-                        tmp->parent->guess = 0;
-                        while (tmp->sibling != NULL) {
-                            tmp = tmp->sibling;
-                            tmp->parent->guess = max(tmp->parent->guess, (unsigned long long)tmp->guess + tmp->length);
-                        }
-                        if (parent_guess != tmp->parent->guess) {
-                            tmp = tmp->parent;
-                            if (tmp->parent == NULL) {
-                                break;
-                            }
-                            current_guess = parent_guess;
-                            parent_guess = tmp->parent->guess;
+                    parent = current->parent;
+                    if (parent->guess_head->child_id == current->child_id) {
+                        guess_tmp = parent->guess_head;
+                        parent->guess_head = parent->guess_head->next;
+                        if (parent->guess_head==NULL) {
+                            parent->guess_tail==NULL;
                         } else {
-                            break;
+                            parent->guess_head->prev = NULL;
+                        }
+                        free(guess_tmp);
+                    }
+
+                    // For op = 5
+                    // printf("%p\n", discover_head);
+                    if (discover_head != NULL && discover_head->tail->dungeon == plan_stack[plan_idx-1]) {
+                        if (discover_head->head == discover_head->tail) {
+                            free(discover_head->head);
+                            // discover_head->head = NULL;
+                            // discover_head->tail = NULL;
+                            discover_head_tmp = discover_head;
+                            discover_head = discover_head->up;
+                            if (discover_head != NULL) {
+                                discover_head->down = NULL;
+                            }
+                            free(discover_head_tmp);
+                        } else {
+                            discover_head->level_end = discover_head->level_end - 1;
+                            discover_tmp = discover_head->tail;
+                            discover_head->tail = discover_head->tail->prev;
+                            discover_head->tail->next = NULL;
+                            free(discover_tmp);
                         }
                     }
+                    // print_discover_node(discover_head);
 
                     // For op = 2
                     current->parent->child = current->sibling;
@@ -241,12 +515,12 @@ int main() {
                     printf("%u\n", plan_stack[low]->num);
                 } else {
                     while (low < high) {
-                        median = (low + high) >> 1;
-                        path = plan_stack[plan_idx-1]->acc_length - plan_stack[median]->acc_length;
+                        middle = (low + high) >> 1;
+                        path = plan_stack[plan_idx-1]->acc_length - plan_stack[middle]->acc_length;
                         if (ti >= path) {
-                            high = median;
+                            high = middle;
                         } else {
-                            low = median;
+                            low = middle;
                         }
                         if (high == low + 1) {
                             if (ti >= plan_stack[plan_idx-1]->acc_length - plan_stack[high]->acc_length) {
@@ -261,55 +535,100 @@ int main() {
                 break;
             case 4:
                 // Guess
-                printf("%llu\n", current->guess);
+                if (current->guess_head == NULL) {
+                    printf("0\n");
+                } else {
+                    printf("%llu\n", current->guess_head->guess);
+                }
                 break;
             case 5:
                 // Discover
                 scanf("%lld", &pi);
-                first_negative = false;
-                if (current->treasure_exist) {
-                    tmp = current;
-                    treasure = tmp->treasure;
-                    tmp->treasure = pi;
-                    while (tmp->parent != NULL) {
-                        if (tmp->parent->treasure_exist) {
-                            treasure2 = tmp->parent->treasure;
-                            tmp->parent->treasure = (long long)treasure - tmp->length;
-                            if (tmp->parent->treasure < 0 && first_negative == false) {
-                                first_negative = true;
-                                num = tmp->parent->num;
+
+                if (discover_head==NULL) {
+                    discover_head = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
+                    discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                    discover_head->tail = discover_head->head;
+                } else {
+                    if (plan_stack[plan_idx-1]->level == discover_head->level_end + 1) {
+                        discover_head->level_end = discover_head->level_end + 1;
+                        discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                        discover_head->tail->next->prev = discover_head->tail;
+                        discover_head->tail = discover_head->tail->next;
+                    } else if (plan_stack[plan_idx-1]->level == discover_head->level_end) {
+                        if (discover_head->up != NULL) {
+                            discover_head->level_start = discover_head->level_start - 1;
+                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                            discover_head->tail->next->prev = discover_head->tail;
+                            discover_head->tail = discover_head->tail->next;
+
+                            if (discover_head->level_start == discover_head->up->level_end + 1) {
+                                discover_head->up->level_end = discover_head->level_end; 
+                                discover_head->up->tail->next = discover_head->head;
+                                discover_head->head->prev = discover_head->up->tail;
+                                discover_head->up->tail = discover_head->tail;
+                                discover_head_tmp = discover_head;
+                                discover_head = discover_head->up;
+                                if (discover_head != NULL) {
+                                    discover_head->down = NULL;
+                                }
+                                free(discover_head_tmp);
                             }
-                            treasure = treasure2;
-                            tmp = tmp->parent;
-                            if (tmp->num == 0) {
-                                if (tmp->treasure >= 0) {
-                                    printf("value remaining is %lld\n", tmp->treasure);
+                        } else if (discover_head->level_start > 0) {
+                            discover_head->level_start = discover_head->level_start - 1;
+                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                            discover_head->tail->next->prev = discover_head->tail;
+                            discover_head->tail = discover_head->tail->next;
+                            if (discover_head->level_start == 0) {
+                                if (discover_head->head->escorted_treasure >= 0) {
+                                    printf("value remaining is %lld\n", discover_head->head->escorted_treasure);
                                 } else {
-                                    printf("value lost at %u\n", num);
+                                    treasure = discover_head->head->escorted_treasure + discover_head->head->dungeon->acc_length;
+                                    printf("value lost at %u\n", find_first_negative_dungeon(discover_head->head->dungeon, plan_stack, treasure));
+                                }
+                                discover_head->level_start = discover_head->level_start + 1;
+                                discover_tmp = discover_head->head;
+                                discover_head->head = discover_head->head->next;
+                                if (discover_head->head != NULL) {
+                                    discover_head->head->prev = NULL;
+                                }
+                                free(discover_tmp);
+                                if (discover_head->head == NULL) {
+                                    discover_head->tail = NULL;
+                                    free(discover_head);
+                                    discover_head = NULL;
                                 }
                             }
                         } else {
-                            tmp->parent->treasure_exist = true;
-                            tmp->parent->treasure = (long long)treasure - tmp->length;
-                            if (tmp->parent->treasure < 0 && first_negative == false) {
-                                first_negative = true;
-                                num = tmp->parent->num;
-                            }
-                            if (tmp->parent->num == 0) {
-                                if (tmp->parent->treasure >= 0) {
-                                    printf("value remaining is %lld\n", tmp->parent->treasure);
-                                } else {
-                                    printf("value lost at %u\n", num);
-                                }
+                            ;
+
+                            // if (discover_head->head->escorted_treasure >= 0) {
+                            //     printf("value remaining is %lld\n", discover_head->head->escorted_treasure);
+                            // } else {
                                 
-                            }
-                            break;
+                            //     ;
+                            //     // printf("value lost at %u\n", num);
+                            // }
+                            // discover_head->level_end = discover_head->level_end - 1;
+                            // discover_tmp = discover_head->head;
+                            // discover_head->head = discover_head->head->next;
+                            // discover_head->head->prev = NULL;
+                            // free(discover_tmp);
+                            // if (discover_head->head == NULL) {
+                            //     discover_head->tail = NULL;
+                            //     free(discover_head);
+                            //     discover_head = NULL;
+                            // }
                         }
+                    } else {
+                        discover_head->down = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
+                        discover_head->down->up = discover_head;
+                        discover_head = discover_head->down;
+                        discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                        discover_head->tail = discover_head->head;
                     }
-                } else {
-                    current->treasure_exist = true;
-                    current->treasure = pi;
                 }
+                // print_discover_node(discover_head);
                 break;
             case 6:
                 // Construct
