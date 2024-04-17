@@ -90,8 +90,9 @@ typedef struct discover_head_node DiscoverHeadNode;
 
 struct discover_node{
     Node* dungeon;
-    long long escorted_treasure;
     unsigned int first_negative_dungeon;
+    unsigned long long escorted_treasure;
+    bool escorted_negative;
     struct discover_node* prev;
     struct discover_node* next;
 };
@@ -109,12 +110,13 @@ DiscoverHeadNode* create_discover_head_node(unsigned int level_start, unsigned i
     return new;
 }
 
-DiscoverNode* create_discover_node(Node* dungeon, long long escorted_treasure, unsigned int first_negative_dungeon) {
+DiscoverNode* create_discover_node(Node* dungeon, unsigned int first_negative_dungeon, unsigned long long escorted_treasure, bool escorted_negative) {
     DiscoverNode *new;
     new = (DiscoverNode*)malloc(sizeof(DiscoverNode));
     new -> dungeon = dungeon;
-    new -> escorted_treasure = escorted_treasure;
     new -> first_negative_dungeon = first_negative_dungeon;
+    new -> escorted_treasure = escorted_treasure;
+    new -> escorted_negative = escorted_negative;
     new -> prev = NULL;
     new -> next = NULL;
     return new;
@@ -310,7 +312,6 @@ void monotonic_queue_insert(Node** dungeon, unsigned long long guess, unsigned i
                 if (guess_midd->guess >= parent_guess) {
                     break;
                 } else {
-                    // guess_midd = guess_midd->prev;
                     guess_tmp = create_guess_node(parent_guess, current->child_id);
                     guess_tmp->next = guess_midd;
                     if (guess_midd->prev == NULL) {
@@ -335,27 +336,20 @@ void monotonic_queue_insert(Node** dungeon, unsigned long long guess, unsigned i
     }
 }
 
-unsigned int find_first_negative_dungeon(Node* dungeon, Node** plan_stack, long long treasure) {
+unsigned int find_first_negative_dungeon(unsigned int plan_idx, Node** plan_stack, unsigned long long treasure) {
     unsigned int low = 0;
-    unsigned int high = dungeon->level;
+    unsigned int high = plan_idx-1;
     unsigned int middle;
-    unsigned int plan_idx = dungeon->level;
-    long long path;
-    // printf("%u %lld\n", plan_idx, treasure);
+
     while (low < high) {
         middle = (low + high) >> 1;
-        path = plan_stack[plan_idx]->acc_length - plan_stack[middle]->acc_length;
-        if (treasure >= path) {
+        if (treasure >= plan_stack[plan_idx-1]->acc_length - plan_stack[middle]->acc_length) {
             high = middle;
         } else {
             low = middle;
         }
         if (high == low + 1) {
-            if (treasure >= plan_stack[plan_idx]->acc_length - plan_stack[high]->acc_length) {
-                return plan_stack[low]->num;
-            } else {
-                return plan_stack[high]->num;
-            }
+            return plan_stack[low]->num;
         }
     }
 }
@@ -363,10 +357,6 @@ unsigned int find_first_negative_dungeon(Node* dungeon, Node** plan_stack, long 
 int main() {
     unsigned int N, M, Q, op;
     unsigned int ui, vi, li;
-
-    unsigned int low, high, middle;
-    long long ti, pi, path, treasure;
-    unsigned long long current_guess, parent_guess;
 
     scanf("%u%u%u", &N, &M, &Q);
 
@@ -405,24 +395,30 @@ int main() {
         // For op = 4
         // Monotonic Queue
         if (dungeon[vi]->guess_head == NULL) {
-            monotonic_queue_insert(&dungeon[ui], dungeon[vi]->length, dungeon[vi]->child_id);
+            monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->length, dungeon[vi]->child_id);
         } else {
-            monotonic_queue_insert(&dungeon[ui], dungeon[vi]->guess_head->guess + dungeon[vi]->length, dungeon[vi]->child_id);
+            monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->guess_head->guess + dungeon[vi]->length, dungeon[vi]->child_id);
         }
     }
 
     Node* current = dungeon[0];
     Node* parent;
-    Node* tmp;
-    GuessNode *guess_tmp;
 
     // For op = 3
+    unsigned long long ti;
+    unsigned int low, high, middle;
     Node** plan_stack = malloc((N) * sizeof(Node*));
     unsigned int plan_idx = 0;
     stack_push(plan_stack, &plan_idx, current);
 
+    // For op = 4
+    GuessNode *guess_tmp;
+
     // For op = 5
+    unsigned long long pi;
     unsigned int first_negative_dungeon;
+    unsigned long long escorted_treasure;
+    bool escorted_negative;
     DiscoverHeadNode* discover_head = NULL;
     DiscoverHeadNode* discover_head_tmp;
     DiscoverNode* discover_tmp;
@@ -448,6 +444,10 @@ int main() {
                 if (current->parent == NULL) {
                     printf("-1\n");
                 } else {
+                    // For op = 3
+                    stack_pop(plan_stack, &plan_idx);
+                    // stack_print(plan_stack, plan_idx);
+
                     // For op = 4
                     parent = current->parent;
                     if (parent->guess_head->child_id == current->child_id) {
@@ -462,8 +462,7 @@ int main() {
                     }
 
                     // For op = 5
-                    // printf("%p\n", discover_head);
-                    if (discover_head != NULL && discover_head->tail->dungeon == plan_stack[plan_idx-1]) {
+                    if (discover_head != NULL && discover_head->tail->dungeon == current) {
                         if (discover_head->head == discover_head->tail) {
                             free(discover_head->head);
                             // discover_head->head = NULL;
@@ -493,15 +492,14 @@ int main() {
                             current->parent->child->siblingtail = NULL;
                         }
                     }
-                    stack_pop(plan_stack, &plan_idx);
-                    // stack_print(plan_stack, plan_idx);
+
                     current = current->parent;
                     printf("%u\n", current->num);
                 }
                 break;
             case 3:
                 // Plan
-                scanf("%lld", &ti);
+                scanf("%llu", &ti);
 
                 low = 0;
                 high = plan_idx-1;
@@ -512,18 +510,13 @@ int main() {
                 } else {
                     while (low < high) {
                         middle = (low + high) >> 1;
-                        path = plan_stack[plan_idx-1]->acc_length - plan_stack[middle]->acc_length;
-                        if (ti >= path) {
+                        if (ti >= plan_stack[plan_idx-1]->acc_length - plan_stack[middle]->acc_length) {
                             high = middle;
                         } else {
                             low = middle;
                         }
                         if (high == low + 1) {
-                            if (ti >= plan_stack[plan_idx-1]->acc_length - plan_stack[high]->acc_length) {
-                                printf("%u\n", plan_stack[high]->num);
-                            } else {
-                                printf("%u\n", plan_stack[low]->num);
-                            }
+                            printf("%u\n", plan_stack[high]->num);
                             break;
                         }
                     }
@@ -539,42 +532,47 @@ int main() {
                 break;
             case 5:
                 // Discover
-                scanf("%lld", &pi);
+                scanf("%llu", &pi);
+
                 if (plan_stack[plan_idx-1]->level == 0) {
-                    if (pi >= 0) {
-                        printf("value remaining is %lld\n", pi);
-                    } else {
+                    if (pi < 0) {
                         printf("value lost at 0\n");
+                    } else {
+                        printf("value remaining is %llu\n", pi);
                     }
                     break;
                 }
 
                 if (pi < plan_stack[plan_idx-1]->acc_length) {
-                    first_negative_dungeon = find_first_negative_dungeon(plan_stack[plan_idx-1], plan_stack, pi);
+                    first_negative_dungeon = find_first_negative_dungeon(plan_idx, plan_stack, pi);
+                    escorted_treasure = 0;
+                    escorted_negative = true;
                 } else {
                     first_negative_dungeon = 0;
+                    escorted_treasure = pi - plan_stack[plan_idx-1]->acc_length;
+                    escorted_negative = false;
                 }
 
                 if (discover_head==NULL) {
                     discover_head = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
-                    discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
+                    discover_head->head = create_discover_node(plan_stack[plan_idx-1], first_negative_dungeon, escorted_treasure, escorted_negative);
                     discover_head->tail = discover_head->head;
                 } else {
                     if (plan_stack[plan_idx-1]->level > discover_head->level_end + 1) {
                         discover_head->down = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
                         discover_head->down->up = discover_head;
                         discover_head = discover_head->down;
-                        discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
+                        discover_head->head = create_discover_node(plan_stack[plan_idx-1], first_negative_dungeon, escorted_treasure, escorted_negative);
                         discover_head->tail = discover_head->head;
                     } else if (plan_stack[plan_idx-1]->level == discover_head->level_end + 1) {
                         discover_head->level_end = discover_head->level_end + 1;
-                        discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
+                        discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], first_negative_dungeon, escorted_treasure, escorted_negative);
                         discover_head->tail->next->prev = discover_head->tail;
                         discover_head->tail = discover_head->tail->next;
                     } else if (plan_stack[plan_idx-1]->level == discover_head->level_end) {
                         if (discover_head->up != NULL) {
                             discover_head->level_start = discover_head->level_start - 1;
-                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
+                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], first_negative_dungeon, escorted_treasure, escorted_negative);
                             discover_head->tail->next->prev = discover_head->tail;
                             discover_head->tail = discover_head->tail->next;
 
@@ -590,15 +588,15 @@ int main() {
                             }
                         } else if (discover_head->level_start > 0) {
                             discover_head->level_start = discover_head->level_start - 1;
-                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
+                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], first_negative_dungeon, escorted_treasure, escorted_negative);
                             discover_head->tail->next->prev = discover_head->tail;
                             discover_head->tail = discover_head->tail->next;
                             // print_discover_node(discover_head);
                             if (discover_head->level_start == 0) {
-                                if (discover_head->head->escorted_treasure >= 0) {
-                                    printf("value remaining is %lld\n", discover_head->head->escorted_treasure);
-                                } else {
+                                if (discover_head->head->escorted_negative) {
                                     printf("value lost at %u\n", discover_head->head->first_negative_dungeon);
+                                } else {
+                                    printf("value remaining is %llu\n", discover_head->head->escorted_treasure);
                                 }
                                 discover_head->level_start = discover_head->level_start + 1;
                                 discover_tmp = discover_head->head;
