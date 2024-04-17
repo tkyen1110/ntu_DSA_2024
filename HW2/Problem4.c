@@ -91,6 +91,7 @@ typedef struct discover_head_node DiscoverHeadNode;
 struct discover_node{
     Node* dungeon;
     long long escorted_treasure;
+    unsigned int first_negative_dungeon;
     struct discover_node* prev;
     struct discover_node* next;
 };
@@ -108,11 +109,12 @@ DiscoverHeadNode* create_discover_head_node(unsigned int level_start, unsigned i
     return new;
 }
 
-DiscoverNode* create_discover_node(Node* dungeon, long long escorted_treasure) {
+DiscoverNode* create_discover_node(Node* dungeon, long long escorted_treasure, unsigned int first_negative_dungeon) {
     DiscoverNode *new;
     new = (DiscoverNode*)malloc(sizeof(DiscoverNode));
     new -> dungeon = dungeon;
     new -> escorted_treasure = escorted_treasure;
+    new -> first_negative_dungeon = first_negative_dungeon;
     new -> prev = NULL;
     new -> next = NULL;
     return new;
@@ -339,7 +341,7 @@ unsigned int find_first_negative_dungeon(Node* dungeon, Node** plan_stack, long 
     unsigned int middle;
     unsigned int plan_idx = dungeon->level;
     long long path;
-
+    // printf("%u %lld\n", plan_idx, treasure);
     while (low < high) {
         middle = (low + high) >> 1;
         path = plan_stack[plan_idx]->acc_length - plan_stack[middle]->acc_length;
@@ -420,6 +422,7 @@ int main() {
     stack_push(plan_stack, &plan_idx, current);
 
     // For op = 5
+    unsigned int first_negative_dungeon;
     DiscoverHeadNode* discover_head = NULL;
     DiscoverHeadNode* discover_head_tmp;
     DiscoverNode* discover_tmp;
@@ -546,26 +549,32 @@ int main() {
                     break;
                 }
 
+                if (pi < plan_stack[plan_idx-1]->acc_length) {
+                    first_negative_dungeon = find_first_negative_dungeon(plan_stack[plan_idx-1], plan_stack, pi);
+                } else {
+                    first_negative_dungeon = 0;
+                }
+
                 if (discover_head==NULL) {
                     discover_head = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
-                    discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                    discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
                     discover_head->tail = discover_head->head;
                 } else {
                     if (plan_stack[plan_idx-1]->level > discover_head->level_end + 1) {
                         discover_head->down = create_discover_head_node(plan_stack[plan_idx-1]->level, plan_stack[plan_idx-1]->level);
                         discover_head->down->up = discover_head;
                         discover_head = discover_head->down;
-                        discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                        discover_head->head = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
                         discover_head->tail = discover_head->head;
                     } else if (plan_stack[plan_idx-1]->level == discover_head->level_end + 1) {
                         discover_head->level_end = discover_head->level_end + 1;
-                        discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                        discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
                         discover_head->tail->next->prev = discover_head->tail;
                         discover_head->tail = discover_head->tail->next;
                     } else if (plan_stack[plan_idx-1]->level == discover_head->level_end) {
                         if (discover_head->up != NULL) {
                             discover_head->level_start = discover_head->level_start - 1;
-                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
                             discover_head->tail->next->prev = discover_head->tail;
                             discover_head->tail = discover_head->tail->next;
 
@@ -581,15 +590,15 @@ int main() {
                             }
                         } else if (discover_head->level_start > 0) {
                             discover_head->level_start = discover_head->level_start - 1;
-                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length);
+                            discover_head->tail->next = create_discover_node(plan_stack[plan_idx-1], (long long)pi - plan_stack[plan_idx-1]->acc_length, first_negative_dungeon);
                             discover_head->tail->next->prev = discover_head->tail;
                             discover_head->tail = discover_head->tail->next;
+                            // print_discover_node(discover_head);
                             if (discover_head->level_start == 0) {
                                 if (discover_head->head->escorted_treasure >= 0) {
                                     printf("value remaining is %lld\n", discover_head->head->escorted_treasure);
                                 } else {
-                                    treasure = discover_head->head->escorted_treasure + discover_head->head->dungeon->acc_length;
-                                    printf("value lost at %u\n", find_first_negative_dungeon(discover_head->head->dungeon, plan_stack, treasure));
+                                    printf("value lost at %u\n", discover_head->head->first_negative_dungeon);
                                 }
                                 discover_head->level_start = discover_head->level_start + 1;
                                 discover_tmp = discover_head->head;
