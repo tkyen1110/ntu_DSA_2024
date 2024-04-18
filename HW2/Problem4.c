@@ -137,20 +137,6 @@ void print_discover_node(DiscoverHeadNode* discover_head) {
     }
 }
 
-void BFS_print(Node* root) {
-    if (root == NULL) {
-        return;
-    }
-    if (root->guess_head == NULL) {
-        printf("num = %u / length = %u / acc_length = %llu\n", root->num, root->length, root->acc_length);
-    } else {
-        printf("num = %u / length = %u / acc_length = %llu / guess = %llu\n", root->num, root->length, root->acc_length, root->guess_head->guess);
-    }
-    
-    BFS_print(root->sibling);
-    BFS_print(root->child);
-}
-
 void stack_push(Node** stack, unsigned int* idx, Node* current) {
     if (*idx >= 1) {
         current->acc_length = (unsigned long long)stack[(*idx)-1]->acc_length + current->length;
@@ -249,7 +235,7 @@ void dequeue_delete_middle(GuessNode** head, GuessNode** middle, GuessNode** tai
     }
 }
 
-void monotonic_queue_insert(Node** dungeon, unsigned long long guess, unsigned int child_id) {
+void monotonic_queue_insert(Node** dungeon, unsigned long long guess, unsigned int child_id, bool check_parent) {
     Node* current = *dungeon;
     GuessNode *guess_head, *guess_tail, *guess_midd, *guess_tmp;
     unsigned long long parent_guess;
@@ -260,7 +246,7 @@ void monotonic_queue_insert(Node** dungeon, unsigned long long guess, unsigned i
     dequeue_push_back(&(current->guess_head), &(current->guess_tail), guess, child_id);
     // print_guess_node(current);
 
-    while (current->parent != NULL) {
+    while (check_parent && current->parent != NULL) {
         guess_head = current->parent->guess_head;
         guess_tail = current->parent->guess_tail;
         guess_midd = guess_head;
@@ -312,6 +298,28 @@ void monotonic_queue_insert(Node** dungeon, unsigned long long guess, unsigned i
         // print_guess_node(current->parent);
         current = current->parent;
     }
+}
+
+void dfs_monotonic_queue_insert(Node* root) {
+    if (root == NULL) {
+        return;
+    }
+
+    dfs_monotonic_queue_insert(root->child);
+
+    if (root->parent != NULL) {
+        if (root->guess_head == NULL) {
+            monotonic_queue_insert(&(root->parent), (unsigned long long)root->length, root->child_id, false);
+            // printf("num = %u / length = %u / acc_length = %llu / guess = 0\n", root->num, root->length, root->acc_length);
+        } else {
+            monotonic_queue_insert(&(root->parent), (unsigned long long)root->guess_head->guess + root->length, root->child_id, false);
+            // printf("num = %u / length = %u / acc_length = %llu / guess = %llu\n", root->num, root->length, root->acc_length, root->guess_head->guess);
+        }
+    } else {
+        ;
+        // printf("num = %u / length = %u / acc_length = %llu / guess = %llu\n", root->num, root->length, root->acc_length, root->guess_head->guess);
+    }
+    dfs_monotonic_queue_insert(root->sibling);
 }
 
 unsigned int find_first_negative_dungeon(unsigned int plan_idx, Node** plan_stack, unsigned long long treasure) {
@@ -371,13 +379,17 @@ int main() {
         dungeon[vi]->length = li;
 
         // For op = 4
-        // Monotonic Queue
-        if (dungeon[vi]->guess_head == NULL) {
-            monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->length, dungeon[vi]->child_id);
-        } else {
-            monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->guess_head->guess + dungeon[vi]->length, dungeon[vi]->child_id);
-        }
+        // Monotonic Queue (monotonic_queue_insert when building the tree)
+        // if (dungeon[vi]->guess_head == NULL) {
+        //     monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->length, dungeon[vi]->child_id, true);
+        // } else {
+        //     monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->guess_head->guess + dungeon[vi]->length, dungeon[vi]->child_id, true);
+        // }
     }
+
+    // For op = 4
+    // Monotonic Queue (dfs_monotonic_queue_insert after the tree is built)
+    dfs_monotonic_queue_insert(dungeon[0]);
 
     Node* current = dungeon[0];
     Node* parent;
