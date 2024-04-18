@@ -127,7 +127,8 @@ void print_discover_node(DiscoverHeadNode* discover_head) {
         printf("(%u, %u): ", discover_head->level_start, discover_head->level_end);
         DiscoverNode* head = discover_head->head;
         while (head != NULL) {
-            printf("%u(%lld) -> ", head->dungeon->num, head->escorted_treasure);
+            printf("%u(first_negative_dungeon=%u; escorted_treasure=%llu; escorted_negative=%d) -> ", 
+            head->dungeon->num, head->first_negative_dungeon, head->escorted_treasure, head->escorted_negative);
             head = head->next;
         }
         printf("\n");
@@ -135,29 +136,6 @@ void print_discover_node(DiscoverHeadNode* discover_head) {
         printf("%p\n", discover_head);
     }
 }
-
-// void BFS(Node* root) {
-//     if (root == NULL) {
-//         return;
-//     }
-//     root->level = root->parent->level + 1;
-//     root->acc_length = (unsigned long long)root->parent->acc_length + root->length;
-
-//     root->path = malloc((root->level+1) * sizeof(Node*));
-//     root->path[0] = root;
-//     if (root->level == 1) {
-//         root->path[1] = root->parent;
-//     } else if (root->level > 1) {
-//         memcpy(root->path+1, root->parent->path, sizeof(root->parent->path)*(root->parent->level+1));
-//     }
-//     // printf("num = %u / level = %u / length = %u / acc_length = %llu\n", root->num, root->level, root->length, root->acc_length);
-//     // for (unsigned int i=0; i<=root->level; i++) {
-//     //     printf("%llu ", root->path[i]->acc_length);
-//     // }
-//     // printf("\n");
-//     BFS(root->sibling);
-//     BFS(root->child);
-// }
 
 void BFS_print(Node* root) {
     if (root == NULL) {
@@ -462,11 +440,9 @@ int main() {
                     }
 
                     // For op = 5
-                    if (discover_head != NULL && discover_head->tail->dungeon == current) {
-                        if (discover_head->head == discover_head->tail) {
+                    if (discover_head != NULL && discover_head->level_end == current->level) {
+                        if (discover_head->level_start == discover_head->level_end) {
                             free(discover_head->head);
-                            // discover_head->head = NULL;
-                            // discover_head->tail = NULL;
                             discover_head_tmp = discover_head;
                             discover_head = discover_head->up;
                             if (discover_head != NULL) {
