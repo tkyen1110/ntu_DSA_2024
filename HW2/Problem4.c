@@ -608,6 +608,36 @@ int main() {
                 break;
             case 6:
                 // Construct
+                // Still have some Runtime Error and Wrong Answer in Subtask 6
+                scanf("%u%u", &vi, &li);
+                ui = current->num;
+
+                if (dungeon[vi]==NULL) {
+                    dungeon[vi] = create_node(vi);
+                }
+
+                if (dungeon[ui]->child == NULL) {
+                    dungeon[ui]->child = dungeon[vi];
+                    dungeon[vi]->child_id = 1;
+                } else if (dungeon[ui]->child->siblingtail == NULL) {
+                    dungeon[ui]->child->sibling = dungeon[vi];
+                    dungeon[ui]->child->siblingtail = dungeon[vi];
+                    dungeon[vi]->child_id = dungeon[ui]->child->child_id + 1;
+                } else {
+                    dungeon[ui]->child->siblingtail->sibling = dungeon[vi];
+                    dungeon[vi]->child_id = dungeon[ui]->child->siblingtail->child_id + 1;
+                    dungeon[ui]->child->siblingtail = dungeon[ui]->child->siblingtail->sibling;
+                }
+                dungeon[vi]->parent = dungeon[ui];
+                dungeon[vi]->length = li;
+
+                // For op = 4
+                // Monotonic Queue (monotonic_queue_insert when building the tree)
+                if (dungeon[vi]->guess_head == NULL) {
+                    monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->length, dungeon[vi]->child_id, true);
+                } else {
+                    monotonic_queue_insert(&dungeon[ui], (unsigned long long)dungeon[vi]->guess_head->guess + dungeon[vi]->length, dungeon[vi]->child_id, true);
+                }
                 break;
             default: 
                 break;
