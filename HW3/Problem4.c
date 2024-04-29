@@ -4,50 +4,56 @@
 #include <string.h>
 
 #define MAX_SIZE 5000002
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#define min(a,b) (((a) < (b)) ? (a) : (b))
 
+// https://www.youtube.com/watch?v=af1oqpnH1vA
 // https://www.naukri.com/code360/library/prefix-function-knuth-morris-pratt-algorithm
 void compute_prefix_function(char* P, unsigned int** pi) {
-    unsigned int m = strlen(P);
-    unsigned int q, k;
+    // P : pattern
+    // pi: prefix function
+    unsigned int m = strlen(P); // pattern length
+    unsigned int i, j;
     *pi = (unsigned int*)malloc(sizeof(unsigned int)*m);
     (*pi)[0] = 0;
 
-    for (q=1; q<m; q++) {
-        k = (*pi)[q-1];
-        while (k>0 && P[k]!=P[q]) {
-            k = (*pi)[k-1];
+    for (i=1; i<m; i++) {
+        j = (*pi)[i-1];
+        while (j>0 && P[i]!=P[j]) {
+            j = (*pi)[j-1];
         }
 
-        if (P[k]==P[q]) {
-            k = k + 1;
+        if (P[i]==P[j]) {
+            j = j + 1;
         }
-        (*pi)[q] = k;
+        (*pi)[i] = j;
     }
 
     // printf("prefix function: ");
-    // for (q=0; q<m; q++) {
-    //     printf("%u ", (*pi)[q]);
+    // for (i=0; i<m; i++) {
+    //     printf("%u ", (*pi)[i]);
     // }
     // printf("\n");
 }
 
 unsigned int kmp_matcher(char* T, char* P, unsigned int* pi, unsigned int m) {
-    unsigned int n = strlen(T);
-    // unsigned int m = strlen(P);
-    unsigned int q=0;
+    unsigned int n = strlen(T); // text length
+    // unsigned int m = strlen(P); // pattern length
+    unsigned int i, j = 0;
     unsigned int hit_count = 0;
-    for (unsigned int i=0; i<n; i++) {
-        while (q>0 && P[q]!=T[i]) {
-            q = pi[q];
+    if (n < m) {
+        return hit_count;
+    }
+    for (i=0; i<n; i++) {
+        while (j>0 && T[i]!=P[j]) {
+            j = pi[j-1];
         }
-        if (P[q]==T[i]) {
-            q = q + 1;
+        if (T[i]==P[j]) {
+            j = j + 1;
         }
-        if (q==m) {
+        if (j==m) {
             // printf("Pattern occurs with shift %u\n", i+1-m);
             hit_count = hit_count + 1;
-            q = pi[q-1];
+            j = pi[j-1];
         }
     }
     return hit_count;
@@ -69,7 +75,7 @@ unsigned int compute_z_function(char* P, unsigned int** z, unsigned int m) {
     (*z)[0] = 0;
 
     for (i = 1; i < m; i++) {
-        if ((*z)[i-L] + i < R) {
+        if (i + (*z)[i-L] < R) {
             (*z)[i] = min((*z)[i-L], R-i);
         } else {
             while (i + (*z)[i] < m && P[(*z)[i]] == P[i + (*z)[i]]) {
@@ -81,7 +87,7 @@ unsigned int compute_z_function(char* P, unsigned int** z, unsigned int m) {
             plagiarism_likelihood++;
         }
     
-        if (R < i + (*z)[i]) {
+        if (i + (*z)[i] > R) {
             R = i + (*z)[i];
             L = i;
         }
@@ -134,8 +140,12 @@ int main() {
     char* P = (char*)malloc(sizeof(char)*MAX_SIZE); // pattern (C)
     fgets(T, sizeof(char)*MAX_SIZE, stdin);
     fgets(P, sizeof(char)*MAX_SIZE, stdin);
-    T[strlen(T)-1] = '\0';
-    P[strlen(P)-1] = '\0';
+    if (T[strlen(T)-1]=='\n') {
+        T[strlen(T)-1] = '\0';
+    }
+    if (P[strlen(P)-1]=='\n') {
+        P[strlen(P)-1] = '\0';
+    }
     // printf("Text    : %s %lu\n", T, strlen(T));
     // printf("Pattern : %s %lu\n", P, strlen(P));
 
