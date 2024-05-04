@@ -147,7 +147,7 @@ void dfs_visit(Graph* graph, unsigned int u, Node** finish_time, bool* early_sto
 void dfs(Graph* graph, Node** finish_time, bool* early_stop) {
     unsigned int u;
     for (u=1; u<=graph->num_vertices; u++) {
-        graph->vertices[u]->color == 'w';
+        graph->vertices[u]->color = 'w';
     }
     for (u=1; u<=graph->num_vertices; u++) {
         if (graph->vertices[u]->color == 'w') {
@@ -208,7 +208,6 @@ void dfs_transpose(Graph* graph, Node* finish_time, unsigned int* group) {
     }
 }
 
-// void topological_sort(Graph* condense_graph,)
 int main() {
     unsigned int B, A, mode;
     unsigned int u, v;
