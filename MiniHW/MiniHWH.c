@@ -115,7 +115,7 @@ int main() {
             T[i][strlen(T[i])-1] = '\0';
         }
         for (j = 0; j < n; j++) {
-            Trb[j] = (d * Trb[j] + ascii_to_value(T[i][j])) % q;
+            Trb[j] = (unsigned int)(((unsigned long long)d * (unsigned long long)Trb[j] + ascii_to_value(T[i][j])) % (unsigned long long)q);
         }
     }
 
@@ -129,7 +129,7 @@ int main() {
             P[i][strlen(P[i])-1] = '\0';
         }
         for (j = 0; j < m; j++) {
-            Prb[j] = (d * Prb[j] + ascii_to_value(P[i][j])) % q;
+            Prb[j] = (unsigned int)(((unsigned long long)d * (unsigned long long)Prb[j] + ascii_to_value(P[i][j])) % (unsigned long long)q);
         }
     }
 
