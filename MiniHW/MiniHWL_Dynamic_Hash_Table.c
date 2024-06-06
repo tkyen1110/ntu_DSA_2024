@@ -4,7 +4,7 @@
 #define d 26
 
 struct node{
-    char S[64];
+    char S[65];
 	unsigned long long key;
     struct node* next;
     struct node* prev;
@@ -46,8 +46,8 @@ void print_hash_table(HashTable* ht, unsigned int depth) {
 
 int main() {
     unsigned int N;
-    unsigned int r=2, q=0;
-    unsigned int depth = (1<<r) + q;
+    unsigned long long r=2, q=0;
+    unsigned long long depth = (1<<r) + q;
     unsigned int i, j;
     unsigned long long key, hash_val;
     Node* tmp1, *tmp2;
@@ -59,7 +59,7 @@ int main() {
         ht[i].head = NULL;
         ht[i].tail = NULL;
     }
-    char S[64];
+    char S[65];
     for (i=1; i<=N; i++) {
         scanf("%s", S);
         key = 0;
@@ -104,6 +104,8 @@ int main() {
                     }
                     if (tmp1->next != NULL) {
                         tmp1->next->prev = tmp1->prev;
+                    } else {
+                        ht[q-1].tail = tmp1->prev;
                     }
                     tmp1->prev = NULL;
                     if (ht[depth-1].num == 0) {
@@ -128,6 +130,7 @@ int main() {
             r = r + 1;
             q = 0;
         }
+        // print_hash_table(ht, depth);
     }
     print_hash_table(ht, depth);
 
