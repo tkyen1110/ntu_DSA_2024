@@ -1,0 +1,30 @@
+[submodule "HW0/hw0-DecksOfCards"]
+	path = HW0/hw0-DecksOfCards
+	url = https://github.com/tkyen1110/hw0-DecksOfCards.git
+[submodule "HW0/hw0-ZigZagPermutation"]
+	path = HW0/hw0-ZigZagPermutation
+	url = git@github.com:tkyen1110/hw0-ZigZagPermutation.git
+[submodule "HW1/hw1-DragonsSongAwakening"]
+	path = HW1/hw1-DragonsSongAwakening
+	url = git@github.com:tkyen1110/hw1-DragonsSongAwakening.git
+[submodule "HW1/hw1-SkipList"]
+	path = HW1/hw1-SkipList
+	url = git@github.com:tkyen1110/hw1-SkipList.git
+[submodule "HW2/hw2-Printer"]
+	path = HW2/hw2-Printer
+	url = git@github.com:tkyen1110/hw2-Printer.git
+[submodule "HW2/hw2-Dungeons"]
+	path = HW2/hw2-Dungeons
+	url = git@github.com:tkyen1110/hw2-Dungeons.git
+[submodule "HW3/hw3-DynamicSpectrumArtistry"]
+	path = HW3/hw3-DynamicSpectrumArtistry
+	url = git@github.com:tkyen1110/hw3-DynamicSpectrumArtistry.git
+[submodule "HW3/hw3-Anticheating"]
+	path = HW3/hw3-Anticheating
+	url = git@github.com:tkyen1110/hw3-Anticheating.git
+[submodule "HW4/hw4-DimensionalSpaceAtlas"]
+	path = HW4/hw4-DimensionalSpaceAtlas
+	url = git@github.com:tkyen1110/hw4-DimensionalSpaceAtlas.git
+[submodule "HW4/hw4-Dissolve"]
+	path = HW4/hw4-Dissolve
+	url = git@github.com:tkyen1110/hw4-Dissolve.git
